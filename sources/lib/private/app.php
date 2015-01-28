@@ -92,8 +92,25 @@ class OC_App {
 			if ($checkUpgrade and self::shouldUpgrade($app)) {
 				throw new \OC\NeedsUpdateException();
 			}
-			require_once $app . '/appinfo/app.php';
+			self::requireAppFile($app);
+			if (self::isType($app, array('authentication'))) {
+				// since authentication apps affect the "is app enabled for group" check,
+				// the enabled apps cache needs to be cleared to make sure that the
+				// next time getEnableApps() is called it will also include apps that were
+				// enabled for groups
+				self::$enabledAppsCache = array();
+			}
 		}
+	}
+
+	/**
+	 * Load app.php from the given app
+	 *
+	 * @param string $app app name
+	 */
+	private static function requireAppFile($app) {
+		// encapsulated here to avoid variable scope conflicts
+		require_once $app . '/appinfo/app.php';
 	}
 
 	/**
@@ -172,17 +189,29 @@ class OC_App {
 	 */
 	protected static $enabledAppsCache = array();
 
-	public static function getEnabledApps($forceRefresh = false) {
+	/**
+	 * Returns apps enabled for the current user.
+	 *
+	 * @param bool $forceRefresh whether to refresh the cache
+	 * @param bool $all whether to return apps for all users, not only the
+	 * currently logged in one
+	 */
+	public static function getEnabledApps($forceRefresh = false, $all = false) {
 		if (!OC_Config::getValue('installed', false)) {
 			return array();
 		}
-		if (!$forceRefresh && !empty(self::$enabledAppsCache)) {
+		// in incognito mode or when logged out, $user will be false,
+		// which is also the case during an upgrade
+		$user = null;
+		if (!$all) {
+			$user = \OC_User::getUser();
+		}
+		if (is_string($user) && !$forceRefresh && !empty(self::$enabledAppsCache)) {
 			return self::$enabledAppsCache;
 		}
 		$apps = array();
 		$appConfig = \OC::$server->getAppConfig();
 		$appStatus = $appConfig->getValues(false, 'enabled');
-		$user = \OC_User::getUser();
 		foreach ($appStatus as $app => $enabled) {
 			if ($app === 'files') {
 				continue;
@@ -192,11 +221,16 @@ class OC_App {
 			} else if ($enabled !== 'no') {
 				$groups = json_decode($enabled);
 				if (is_array($groups)) {
-					foreach ($groups as $group) {
-						if (\OC_Group::inGroup($user, $group)) {
-							$apps[] = $app;
-							break;
+					if (is_string($user)) {
+						foreach ($groups as $group) {
+							if (\OC_Group::inGroup($user, $group)) {
+								$apps[] = $app;
+								break;
+							}
 						}
+					} else {
+						// global, consider app as enabled
+						$apps[] = $app;
 					}
 				}
 			}
@@ -642,7 +676,15 @@ class OC_App {
 				$data[$child->getName()] = substr($xml, 13, -14); //script <description> tags
 			} elseif ($child->getName() == 'documentation') {
 				foreach ($child as $subChild) {
-					$data["documentation"][$subChild->getName()] = (string)$subChild;
+					$url = (string) $subChild;
+
+					// If it is not an absolute URL we assume it is a key
+					// i.e. admin-ldap will get converted to go.php?to=admin-ldap
+					if(!\OC::$server->getHTTPHelper()->isHTTPURL($url)) {
+						$url = OC_Helper::linkToDocs($url);
+					}
+
+					$data["documentation"][$subChild->getName()] = $url;
 				}
 			} else {
 				$data[$child->getName()] = (string)$child;
@@ -1077,13 +1119,17 @@ class OC_App {
 			return $versions; // when function is used besides in checkUpgrade
 		}
 		$versions = array();
-		$query = OC_DB::prepare('SELECT `appid`, `configvalue` FROM `*PREFIX*appconfig`'
-			. ' WHERE `configkey` = \'installed_version\'');
-		$result = $query->execute();
-		while ($row = $result->fetchRow()) {
-			$versions[$row['appid']] = $row['configvalue'];
+		try {
+			$query = OC_DB::prepare('SELECT `appid`, `configvalue` FROM `*PREFIX*appconfig`'
+				. ' WHERE `configkey` = \'installed_version\'');
+			$result = $query->execute();
+			while ($row = $result->fetchRow()) {
+				$versions[$row['appid']] = $row['configvalue'];
+			}
+			return $versions;
+		} catch (\Exception $e) {
+			return array();
 		}
-		return $versions;
 	}
 
 
@@ -1140,10 +1186,6 @@ class OC_App {
 	 * @return bool
 	 */
 	public static function updateApp($appId) {
-		if (file_exists(self::getAppPath($appId) . '/appinfo/preupdate.php')) {
-			self::loadApp($appId, false);
-			include self::getAppPath($appId) . '/appinfo/preupdate.php';
-		}
 		if (file_exists(self::getAppPath($appId) . '/appinfo/database.xml')) {
 			OC_DB::updateDbFromStructure(self::getAppPath($appId) . '/appinfo/database.xml');
 		}

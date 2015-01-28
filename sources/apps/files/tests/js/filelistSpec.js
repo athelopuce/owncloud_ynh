@@ -218,13 +218,13 @@ describe('OCA.Files.FileList tests', function() {
 
 			expect($tr).toBeDefined();
 			expect($tr[0].tagName.toLowerCase()).toEqual('tr');
-			expect($tr.attr('data-id')).toEqual(null);
+			expect($tr.attr('data-id')).toBeUndefined();
 			expect($tr.attr('data-type')).toEqual('file');
 			expect($tr.attr('data-file')).toEqual('testFile.txt');
-			expect($tr.attr('data-size')).toEqual(null);
-			expect($tr.attr('data-etag')).toEqual(null);
+			expect($tr.attr('data-size')).toBeUndefined();
+			expect($tr.attr('data-etag')).toBeUndefined();
 			expect($tr.attr('data-permissions')).toEqual('31');
-			expect($tr.attr('data-mime')).toEqual(null);
+			expect($tr.attr('data-mime')).toBeUndefined();
 			expect($tr.attr('data-mtime')).toEqual('123456');
 
 			expect($tr.find('.filesize').text()).toEqual('Pending');
@@ -239,11 +239,11 @@ describe('OCA.Files.FileList tests', function() {
 
 			expect($tr).toBeDefined();
 			expect($tr[0].tagName.toLowerCase()).toEqual('tr');
-			expect($tr.attr('data-id')).toEqual(null);
+			expect($tr.attr('data-id')).toBeUndefined();
 			expect($tr.attr('data-type')).toEqual('dir');
 			expect($tr.attr('data-file')).toEqual('testFolder');
-			expect($tr.attr('data-size')).toEqual(null);
-			expect($tr.attr('data-etag')).toEqual(null);
+			expect($tr.attr('data-size')).toBeUndefined();
+			expect($tr.attr('data-etag')).toBeUndefined();
 			expect($tr.attr('data-permissions')).toEqual('31');
 			expect($tr.attr('data-mime')).toEqual('httpd/unix-directory');
 			expect($tr.attr('data-mtime')).toEqual('123456');
@@ -1835,7 +1835,6 @@ describe('OCA.Files.FileList tests', function() {
 			// but it makes it possible to simulate the event triggering to
 			// test the response of the handlers
 			$uploader = $('#file_upload_start');
-			fileList.setupUploadEvents();
 			fileList.setFiles(testFiles);
 		});
 
@@ -1912,6 +1911,16 @@ describe('OCA.Files.FileList tests', function() {
 				ev = dropOn(fileList.$fileList.find('th:first'));
 
 				expect(ev.result).toEqual(false);
+				expect(notificationStub.calledOnce).toEqual(true);
+			});
+			it('drop on an folder does not trigger upload if no upload permission on that folder', function() {
+				var $tr = fileList.findFileEl('somedir');
+				var ev;
+				$tr.data('permissions', OC.PERMISSION_READ);
+				ev = dropOn($tr);
+
+				expect(ev.result).toEqual(false);
+				expect(notificationStub.calledOnce).toEqual(true);
 			});
 			it('drop on a file row inside the table triggers upload to current folder', function() {
 				var ev;

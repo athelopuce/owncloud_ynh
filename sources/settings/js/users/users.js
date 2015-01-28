@@ -615,13 +615,16 @@ $(document).ready(function () {
 			.keypress(function (event) {
 				if (event.keyCode === 13) {
 					if ($(this).val().length > 0) {
-						$tr.find('.avatardiv').imageplaceholder(uid, displayName);
+						var $div = $tr.find('div.avatardiv');
+						if ($div.length) {
+							$div.imageplaceholder(uid, displayName);
+						}
 						$.post(
 							OC.filePath('settings', 'ajax', 'changedisplayname.php'),
 							{username: uid, displayName: $(this).val()},
 							function (result) {
-								if (result && result.status==='success'){
-									$tr.find('.avatardiv').avatar(result.data.username, 32);
+								if (result && result.status==='success' && $div.length){
+									$div.avatar(result.data.username, 32);
 								}
 							}
 						);
@@ -707,5 +710,28 @@ $(document).ready(function () {
 			}
 		);
 	});
+
+	// Option to display/hide the "Storage location" column
+	$('#CheckboxStorageLocation').click(function() {
+		if ($('#CheckboxStorageLocation').is(':checked')) {
+			$("#headerStorageLocation").show();
+			$("#userlist td.storageLocation").show();
+		} else {
+			$("#headerStorageLocation").hide();
+			$("#userlist td.storageLocation").hide();
+		}
+	});
+	// Option to display/hide the "Last Login" column
+	$('#CheckboxLastLogin').click(function() {
+		if ($('#CheckboxLastLogin').is(':checked')) {
+			$("#headerLastLogin").show();
+			$("#userlist td.lastLogin").show();
+		} else {
+			$("#headerLastLogin").hide();
+			$("#userlist td.lastLogin").hide();
+		}
+	});
+
+
 
 });

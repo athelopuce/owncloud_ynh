@@ -39,31 +39,32 @@ body {
 
 
 #nojavascript {
-	position: absolute;
+	position: fixed;
 	top: 0;
 	bottom: 0;
-	z-index: 999;
+	height: 100%;
 	width: 100%;
+	z-index: 9000;
 	text-align: center;
-	background-color: rgba(50,0,0,0.5);
-	color: white;
-	text-shadow: 0px 0px 5px black;
+	background-color: rgba(0,0,0,0.5);
+	color: #fff;
 	line-height: 125%;
-	font-size: x-large;
+	font-size: 24px;
 }
 #nojavascript div {
+	display: block;
+	position: relative;
 	width: 50%;
-	top: 40%;
-	position: absolute;
-	left: 50%;
-	margin-left: -25%;
+	top: 35%;
+	margin: 0px auto;
 }
 #nojavascript a {
-	color: #ccc;
-	text-decoration: underline;
+	color: #fff;
+	border-bottom: 2px dotted #fff;
 }
-#nojavascript a:hover {
-	color: #aaa;
+#nojavascript a:hover,
+#nojavascript a:focus {
+	color: #ddd;
 }
 
 
@@ -75,6 +76,7 @@ input[type="number"],
 input[type="email"],
 input[type="url"],
 input[type="time"],
+input[type="date"],
 textarea,
 select,
 button, .button,
@@ -136,6 +138,18 @@ input[type="time"] {
 	width: initial;
 	height: 31px;
 	-moz-box-sizing: border-box; box-sizing: border-box;
+}
+
+.select2-choices {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	color: #333;
+	background-image: none;
+}
+.select2-dropdown-open .select2-choices {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+	border: 1px solid #3875d7;
 }
 
 /* correctly align images inside of buttons */
@@ -300,6 +314,10 @@ input[type="submit"].enabled {
 	padding-top: 45px;
 	-moz-box-sizing:border-box;
 	box-sizing:border-box;
+}
+/* allow horizontal scrollbar for personal and admin settings */
+#body-settings:not(.snapjs-left) .app-settings {
+	overflow-x: auto;
 }
 
 #emptycontent {
@@ -755,6 +773,8 @@ a.bookmarklet { background-color:#ddd; border:1px solid #ccc; padding:5px;paddin
 	background-image:url('../img/places/home.svg');
 	background-repeat:no-repeat;
 	background-position: left center;
+	width: 26px;
+	display: inline-block;
 }
 #oc-dialog-filepicker-content .dirtree span:not(:last-child) { cursor: pointer; }
 #oc-dialog-filepicker-content .dirtree span:last-child { font-weight: bold; }

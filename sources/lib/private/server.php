@@ -10,6 +10,7 @@ use OC\DB\ConnectionWrapper;
 use OC\Files\Node\Root;
 use OC\Files\View;
 use OCP\IServerContainer;
+use OC\Security\Crypto;
 
 /**
  * Class Server
@@ -199,8 +200,15 @@ class Server extends SimpleContainer implements IServerContainer {
 		$this->registerService('Search', function ($c) {
 			return new Search();
 		});
+		$this->registerService('Crypto', function ($c) {
+			return new Crypto(\OC::$server->getConfig());
+		});
 		$this->registerService('Db', function ($c) {
 			return new Db();
+		});
+		$this->registerService('HTTPHelper', function (SimpleContainer $c) {
+			$config = $c->query('AllConfig');
+			return new HTTPHelper($config);
 		});
 	}
 
@@ -262,14 +270,20 @@ class Server extends SimpleContainer implements IServerContainer {
 	/**
 	 * Returns a view to ownCloud's files folder
 	 *
+	 * @param string $userId user ID
 	 * @return \OCP\Files\Folder
 	 */
-	function getUserFolder() {
-		$user = $this->getUserSession()->getUser();
-		if (!$user) {
-			return null;
+	function getUserFolder($userId = null) {
+		if($userId === null) {
+			$user = $this->getUserSession()->getUser();
+			if (!$user) {
+				return null;
+			}
+			$userId = $user->getUID();
+		} else {
+			$user = $this->getUserManager()->get($userId);
 		}
-		$dir = '/' . $user->getUID();
+		$dir = '/' . $userId;
 		$root = $this->getRootFolder();
 		$folder = null;
 
@@ -282,6 +296,19 @@ class Server extends SimpleContainer implements IServerContainer {
 		$dir = '/files';
 		if (!$folder->nodeExists($dir)) {
 			$folder = $folder->newFolder($dir);
+
+			if (\OCP\App::isEnabled('files_encryption')) {
+				// disable encryption proxy to prevent recursive calls
+				$proxyStatus = \OC_FileProxy::$enabled;
+				\OC_FileProxy::$enabled = false;
+			}
+
+			\OC_Util::copySkeleton($user, $folder);
+
+			if (\OCP\App::isEnabled('files_encryption')) {
+				// re-enable proxy - our work is done
+				\OC_FileProxy::$enabled = $proxyStatus;
+			}
 		} else {
 			$folder = $folder->get($dir);
 		}
@@ -457,6 +484,15 @@ class Server extends SimpleContainer implements IServerContainer {
 	}
 
 	/**
+	 * Returns a Crypto instance
+	 *
+	 * @return \OCP\Security\ICrypto
+	 */
+	function getCrypto() {
+		return $this->query('Crypto');
+	}
+
+	/**
 	 * Returns an instance of the db facade
 	 *
 	 * @return \OCP\IDb
@@ -464,4 +500,13 @@ class Server extends SimpleContainer implements IServerContainer {
 	function getDb() {
 		return $this->query('Db');
 	}
+
+	/**
+	 * Returns an instance of the HTTP helper class
+	 * @return \OC\HTTPHelper
+	 */
+	function getHTTPHelper() {
+		return $this->query('HTTPHelper');
+	}
+
 }

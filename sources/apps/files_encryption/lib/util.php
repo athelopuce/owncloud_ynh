@@ -889,6 +889,25 @@ class Util {
 	}
 
 	/**
+	 * Returns whether the given user is ready for encryption.
+	 * Also returns true if the given user is the public user
+	 * or the recovery key user.
+	 *
+	 * @param string $user user to check
+	 *
+	 * @return boolean true if the user is ready, false otherwise
+	 */
+	private function isUserReady($user) {
+		if ($user === $this->publicShareKeyId
+			|| $user === $this->recoveryKeyId
+		) {
+			return true;
+		}
+		$util = new Util($this->view, $user);
+		return $util->ready();
+	}
+
+	/**
 	 * Filter an array of UIDs to return only ones ready for sharing
 	 * @param array $unfilteredUsers users to be checked for sharing readiness
 	 * @return array as multi-dimensional array. keys: ready, unready
@@ -900,16 +919,9 @@ class Util {
 
 		// Loop through users and create array of UIDs that need new keyfiles
 		foreach ($unfilteredUsers as $user) {
-
-			$util = new Util($this->view, $user);
-
 			// Check that the user is encryption capable, or is the
-			// public system user 'ownCloud' (for public shares)
-			if (
-				$user === $this->publicShareKeyId
-				or $user === $this->recoveryKeyId
-				or $util->ready()
-			) {
+			// public system user (for public shares)
+			if ($this->isUserReady($user)) {
 
 				// Construct array of ready UIDs for Keymanager{}
 				$readyIds[] = $user;
@@ -1523,6 +1535,22 @@ class Util {
 		\OC_FileProxy::$enabled = $proxyStatus;
 
 		$this->recoverAllFiles('/', $privateKey);
+	}
+
+	/**
+	 * create a backup of all keys from the user
+	 *
+	 * @param string $purpose (optional) define the purpose of the backup, will be part of the backup folder
+	 */
+	public function backupAllKeys($purpose = '') {
+		$this->userId;
+		$backupDir = $this->encryptionDir . '/backup.';
+		$backupDir .= ($purpose === '') ? date("Y-m-d_H-i-s") . '/' : $purpose . '.' . date("Y-m-d_H-i-s") . '/';
+		$this->view->mkdir($backupDir);
+		$this->view->copy($this->shareKeysPath, $backupDir . 'share-keys/');
+		$this->view->copy($this->keyfilesPath, $backupDir . 'keyfiles/');
+		$this->view->copy($this->privateKeyPath, $backupDir . $this->userId . '.private.key');
+		$this->view->copy($this->publicKeyPath, $backupDir . $this->userId . '.public.key');
 	}
 
 	/**
